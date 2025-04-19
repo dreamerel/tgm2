@@ -5,7 +5,7 @@ import Register from './pages/Register';
 import MainLayout from './pages/MainLayout';
 
 function getToken() {
-  return localStorage.getItem('token');
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
 }
 
 function App() {

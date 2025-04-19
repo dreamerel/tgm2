@@ -13,12 +13,6 @@ function AddAccountModal({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [phoneCodeHash, setPhoneCodeHash] = useState('');
 
-  // Получение API URL из переменных окружения
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-  
-  // Функция для получения токена
-  const getToken = () => localStorage.getItem('token');
-
   const reset = () => {
     setStep(1);
     setPhone('');
@@ -36,15 +30,7 @@ function AddAccountModal({ open, onClose }) {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/api/telegram/send_code`, 
-        { phone, api_id: apiId, api_hash: apiHash },
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`
-          }
-        }
-      );
-      
+      const res = await axios.post('https://tgm2.onrender.com/api/telegram/send_code', { phone, api_id: apiId, api_hash: apiHash });
       if (res.data && res.data.ok) {
         setPhoneCodeHash(res.data.phone_code_hash);
         setStep(2);
@@ -52,11 +38,9 @@ function AddAccountModal({ open, onClose }) {
         setError(res.data?.message || 'Ошибка отправки кода');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка отправки запроса');
-      console.error('Ошибка при отправке кода:', err);
-    } finally {
-      setLoading(false);
+      setError(err.response?.data?.message || 'Ошибка отправки запроса');
     }
+    setLoading(false);
   };
 
   const handleVerifyCode = async (e) => {
@@ -65,22 +49,14 @@ function AddAccountModal({ open, onClose }) {
     setLoading(true);
     try {
       const res = await axios.post(
-        `${API_URL}/api/telegram/sign_in`,
-        { 
-          phone, 
-          api_id: apiId, 
-          api_hash: apiHash, 
-          code, 
-          phone_code_hash: phoneCodeHash, 
-          password 
-        },
+        'https://tgm2.onrender.com/api/telegram/sign_in',
+        { phone, api_id: apiId, api_hash: apiHash, code, phone_code_hash: phoneCodeHash, password },
         {
           headers: {
-            Authorization: `Bearer ${getToken()}`
+            Authorization: `Bearer ${localStorage.getItem('token')}`
           }
         }
       );
-      
       if (res.data && res.data.needPassword) {
         setNeedPassword(true);
         setStep(3);
@@ -91,11 +67,9 @@ function AddAccountModal({ open, onClose }) {
         setError(res.data?.message || 'Ошибка подтверждения');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка запроса');
-      console.error('Ошибка при верификации кода:', err);
-    } finally {
-      setLoading(false);
+      setError(err.response?.data?.message || 'Ошибка запроса');
     }
+    setLoading(false);
   };
 
   const handleFinish = async (e) => {
@@ -103,22 +77,7 @@ function AddAccountModal({ open, onClose }) {
     setError('');
     setLoading(true);
     try {
-      const res = await axios.post(
-        `${API_URL}/api/telegram/sign_in`, 
-        { 
-          phone, 
-          code, 
-          password, 
-          api_id: apiId, 
-          api_hash: apiHash 
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${getToken()}`
-          }
-        }
-      );
-      
+      const res = await axios.post('https://tgm2.onrender.com/api/telegram/sign_in', { phone, code, password, api_id: apiId, api_hash: apiHash });
       if (res.data && res.data.ok) {
         onClose();
         reset();
@@ -126,11 +85,9 @@ function AddAccountModal({ open, onClose }) {
         setError(res.data?.message || 'Ошибка добавления аккаунта');
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка запроса');
-      console.error('Ошибка при добавлении аккаунта:', err);
-    } finally {
-      setLoading(false);
+      setError(err.response?.data?.message || 'Ошибка запроса');
     }
+    setLoading(false);
   };
 
   const handleClose = () => {
@@ -171,10 +128,8 @@ function AddAccountModal({ open, onClose }) {
               disabled={loading}
             />
             <div className="tg-modal-actions">
-              <button type="submit" disabled={loading}>
-                {loading ? 'Загрузка...' : 'Далее'}
-              </button>
-              <button type="button" onClick={handleClose} disabled={loading}>Отмена</button>
+              <button type="submit" disabled={loading}>Далее</button>
+              <button type="button" onClick={handleClose}>Отмена</button>
             </div>
             {error && <div className="auth-error">{error}</div>}
           </form>
@@ -190,9 +145,7 @@ function AddAccountModal({ open, onClose }) {
               disabled={loading}
             />
             <div className="tg-modal-actions">
-              <button type="submit" disabled={loading}>
-                {loading ? 'Загрузка...' : 'Далее'}
-              </button>
+              <button type="submit" disabled={loading}>Далее</button>
               <button type="button" onClick={() => setStep(1)} disabled={loading}>Назад</button>
             </div>
             {error && <div className="auth-error">{error}</div>}
@@ -202,16 +155,14 @@ function AddAccountModal({ open, onClose }) {
           <form onSubmit={handleFinish}>
             <input
               type="password"
-              placeholder="Пароль (двухфакторная аутентификация)"
+              placeholder="Пароль (если требуется)"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
               disabled={loading}
             />
             <div className="tg-modal-actions">
-              <button type="submit" disabled={loading}>
-                {loading ? 'Загрузка...' : 'Завершить'}
-              </button>
+              <button type="submit" disabled={loading}>Завершить</button>
               <button type="button" onClick={() => setStep(2)} disabled={loading}>Назад</button>
             </div>
             {error && <div className="auth-error">{error}</div>}
