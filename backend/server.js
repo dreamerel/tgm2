@@ -10,13 +10,23 @@ const app = express();
 
 // Настройка CORS с расширенными опциями
 app.use(cors({
-  origin: '*', // Разрешаем запросы с любого домена
+  origin: ['https://tgm2.vercel.app', 'http://localhost:3000'], // Разрешаем запросы только с указанных доменов
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true // Разрешаем передачу учетных данных
 }));
 
 // Добавляем middleware для предварительных запросов OPTIONS
 app.options('*', cors());
+
+// Добавляем дополнительные заголовки для CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
+});
 app.use(express.json());
 
 app.use('/api/auth', authRouter);
