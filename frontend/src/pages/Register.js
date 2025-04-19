@@ -14,7 +14,7 @@ function Register() {
     setError('');
     setSuccess('');
     try {
-      await axios.post('/api/auth/register', { login, password });
+      await axios.post('https://tgm2.onrender.com/api/auth/register', { login, password });
       setSuccess('Регистрация успешна!');
       setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
