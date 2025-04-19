@@ -1,5 +1,6 @@
 {
   "name": "frontend",
+  "proxy": "https://tgm2.onrender.com",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
