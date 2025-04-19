@@ -1,0 +1,15 @@
+{
+  "name": "tg7",
+  "version": "1.0.0",
+  "description": "Telegram Manager",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "cd backend && npm install && node server.js",
+    "build": "cd backend && npm install"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "author": "",
+  "license": "ISC"
+}
