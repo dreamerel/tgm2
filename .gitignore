@@ -1,0 +1,17 @@
+# Ignore all node_modules folders
+node_modules/
+
+# Ignore SQLite database files
+*.db
+
+# Ignore build output
+frontend/build/
+
+# Ignore environment files
+.env
+
+# Ignore OS and editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
