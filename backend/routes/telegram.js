@@ -1,6 +1,67 @@
 const express = require('express');
-const { spawn } = require('child_process');
+const { execFile } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
+
+// Функция для проверки наличия Python и определения правильной команды
+function getPythonCommand() {
+    return new Promise((resolve, reject) => {
+        // Сначала проверяем python3
+        execFile('python3', ['--version'], (error) => {
+            if (!error) {
+                resolve('python3');
+            } else {
+                // Если python3 не найден, проверяем python
+                execFile('python', ['--version'], (error2) => {
+                    if (!error2) {
+                        resolve('python');
+                    } else {
+                        reject(new Error('Python не установлен или не доступен'));
+                    }
+                });
+            }
+        });
+    });
+}
+
+// Функция для запуска Python-скрипта
+async function runPythonScript(scriptName, args) {
+    try {
+        const pythonCommand = await getPythonCommand();
+        console.log(`Используем команду Python: ${pythonCommand}`);
+        
+        // Полный путь к скрипту
+        const scriptPath = path.join(process.cwd(), scriptName);
+        console.log(`Путь к скрипту: ${scriptPath}`);
+        
+        // Проверяем, существует ли файл
+        if (!fs.existsSync(scriptPath)) {
+            throw new Error(`Скрипт не найден: ${scriptPath}`);
+        }
+        
+        return new Promise((resolve, reject) => {
+            execFile(pythonCommand, [scriptPath, ...args], (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Ошибка выполнения скрипта: ${error.message}`);
+                    console.error(`STDERR: ${stderr}`);
+                    reject(error);
+                    return;
+                }
+                
+                if (stderr) {
+                    console.warn(`STDERR (предупреждение): ${stderr}`);
+                }
+                
+                console.log(`STDOUT: ${stdout}`);
+                resolve(stdout);
+            });
+        });
+    } catch (error) {
+        console.error(`Ошибка при запуске Python-скрипта: ${error.message}`);
+        throw error;
+    }
+}
 
 // POST /api/telegram/send_code
 router.post('/send_code', async (req, res) => {
@@ -9,32 +70,20 @@ router.post('/send_code', async (req, res) => {
         if (!phone || !api_id || !api_hash) {
             return res.status(400).json({ message: 'phone, api_id, api_hash required' });
         }
-        console.log('Trying to execute Python script with args:', ['telegram_worker.py', 'send_code', phone, api_id, api_hash]);
-        console.log('Current working directory:', process.cwd());
         
-        // Пробуем использовать python3 вместо python, так как на некоторых системах это разные команды
-        const pythonCommand = process.env.NODE_ENV === 'production' ? 'python3' : 'python';
-        console.log('Using Python command:', pythonCommand);
+        console.log('Запуск скрипта для отправки кода:', { phone, api_id, api_hash });
         
-        const args = ['telegram_worker.py', 'send_code', phone, api_id, api_hash];
-        const py = spawn(pythonCommand, args, { cwd: process.cwd() });
-        let result = '';
-        let error = '';
-        py.stdout.on('data', data => { result += data.toString(); });
-        py.stderr.on('data', data => { error += data.toString(); });
-        py.on('close', code => {
-            // ЛОГИРОВАНИЕ ДЛЯ ДИАГНОСТИКИ
-            console.log('PYTHON WORKER STDOUT:', result);
-            console.log('PYTHON WORKER STDERR:', error);
-            if (error) return res.status(500).json({ message: 'Worker error', error });
-            try {
-                const json = JSON.parse(result);
-                res.json(json);
-            } catch (e) {
-                res.status(500).json({ message: 'Invalid worker response', raw: result });
-            }
-        });
+        const result = await runPythonScript('telegram_worker.py', ['send_code', phone, api_id, api_hash]);
+        
+        try {
+            const json = JSON.parse(result);
+            res.json(json);
+        } catch (e) {
+            console.error('Ошибка при разборе JSON:', e.message);
+            res.status(500).json({ message: 'Invalid worker response', raw: result });
+        }
     } catch (err) {
+        console.error('Ошибка сервера:', err.message);
         res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
@@ -47,37 +96,25 @@ router.post('/sign_in', async (req, res) => {
         if (!phone || !code) {
             return res.status(400).json({ message: 'phone и code обязательны' });
         }
+        
+        console.log('Запуск скрипта для входа:', { phone, code, password: password ? '[СКРЫТО]' : undefined });
+        
         // Собираем аргументы для worker
         const args = password
-            ? ['telegram_worker.py', 'sign_in', phone, code, password]
-            : ['telegram_worker.py', 'sign_in', phone, code];
-        console.log('Trying to execute Python script with args:', args);
-        console.log('Current working directory:', process.cwd());
+            ? ['sign_in', phone, code, password]
+            : ['sign_in', phone, code];
         
-        // Пробуем использовать python3 вместо python, так как на некоторых системах это разные команды
-        const pythonCommand = process.env.NODE_ENV === 'production' ? 'python3' : 'python';
-        console.log('Using Python command:', pythonCommand);
+        const result = await runPythonScript('telegram_worker.py', args);
         
-        const py = spawn(pythonCommand, args, { cwd: process.cwd() });
-
-
-        let result = '';
-        let error = '';
-        py.stdout.on('data', data => { result += data.toString(); });
-        py.stderr.on('data', data => { error += data.toString(); });
-        py.on('close', code => {
-            // ЛОГИРОВАНИЕ ДЛЯ ДИАГНОСТИКИ
-            console.log('PYTHON WORKER STDOUT:', result);
-            console.log('PYTHON WORKER STDERR:', error);
-            if (error) return res.status(500).json({ message: 'Worker error', error });
-            try {
-                const json = JSON.parse(result);
-                res.json(json);
-            } catch (e) {
-                res.status(500).json({ message: 'Invalid worker response', raw: result });
-            }
-        });
+        try {
+            const json = JSON.parse(result);
+            res.json(json);
+        } catch (e) {
+            console.error('Ошибка при разборе JSON:', e.message);
+            res.status(500).json({ message: 'Invalid worker response', raw: result });
+        }
     } catch (err) {
+        console.error('Ошибка сервера:', err.message);
         res.status(500).json({ message: 'Server error', error: err.message });
     }
 });
