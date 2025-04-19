@@ -9,8 +9,15 @@ router.post('/send_code', async (req, res) => {
         if (!phone || !api_id || !api_hash) {
             return res.status(400).json({ message: 'phone, api_id, api_hash required' });
         }
+        console.log('Trying to execute Python script with args:', ['telegram_worker.py', 'send_code', phone, api_id, api_hash]);
+        console.log('Current working directory:', process.cwd());
+        
+        // Пробуем использовать python3 вместо python, так как на некоторых системах это разные команды
+        const pythonCommand = process.env.NODE_ENV === 'production' ? 'python3' : 'python';
+        console.log('Using Python command:', pythonCommand);
+        
         const args = ['telegram_worker.py', 'send_code', phone, api_id, api_hash];
-        const py = spawn('python', args, { cwd: process.cwd() });
+        const py = spawn(pythonCommand, args, { cwd: process.cwd() });
         let result = '';
         let error = '';
         py.stdout.on('data', data => { result += data.toString(); });
@@ -44,7 +51,14 @@ router.post('/sign_in', async (req, res) => {
         const args = password
             ? ['telegram_worker.py', 'sign_in', phone, code, password]
             : ['telegram_worker.py', 'sign_in', phone, code];
-        const py = spawn('python', args, { cwd: process.cwd() });
+        console.log('Trying to execute Python script with args:', args);
+        console.log('Current working directory:', process.cwd());
+        
+        // Пробуем использовать python3 вместо python, так как на некоторых системах это разные команды
+        const pythonCommand = process.env.NODE_ENV === 'production' ? 'python3' : 'python';
+        console.log('Using Python command:', pythonCommand);
+        
+        const py = spawn(pythonCommand, args, { cwd: process.cwd() });
 
 
         let result = '';
