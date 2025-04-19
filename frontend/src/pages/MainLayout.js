@@ -1,30 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import AddAccountModal from '../components/AddAccountModal';
 
 function MainLayout() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Получение API URL из переменных окружения
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  
+  // Функция для получения токена
+  const getToken = () => localStorage.getItem('token');
 
   // Загрузка аккаунтов
   const fetchAccounts = async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/telegram/accounts');
-      const data = await res.json();
-      if (data.ok) setAccounts(data.accounts);
-    } catch (e) {
-      setAccounts([]);
+      const response = await axios.get(`${API_URL}/api/telegram/accounts`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`
+        }
+      });
+      
+      if (response.data.ok) {
+        setAccounts(response.data.accounts);
+      }
+    } catch (err) {
+      console.error('Ошибка при загрузке аккаунтов:', err);
+      setError('Не удалось загрузить аккаунты');
+    } finally {
+      setLoading(false);
     }
   };
 
-  React.useEffect(() => {
+  // Загрузка аккаунтов при монтировании компонента
+  useEffect(() => {
     fetchAccounts();
   }, []);
 
-  // При закрытии AddAccountModal обновлять список
+  // Обработчик выхода из системы
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.replace('/login');
+  };
+
+  // При закрытии AddAccountModal обновляем список аккаунтов
   const handleCloseModal = () => {
     setShowAddModal(false);
     fetchAccounts();
   };
+
   return (
     <div className="tg-wrapper">
       <aside className="tg-sidebar">
@@ -38,11 +65,15 @@ function MainLayout() {
           <button className="tg-tab">Авто</button>
         </div>
         <div className="tg-accounts-list">
-          {accounts.length === 0 ? (
+          {loading ? (
+            <div className="tg-no-accounts">Загрузка...</div>
+          ) : error ? (
+            <div className="tg-no-accounts">{error}</div>
+          ) : accounts.length === 0 ? (
             <div className="tg-no-accounts">Нет аккаунтов</div>
           ) : (
             accounts.map(acc => (
-              <div key={acc.id || acc.phone} className="tg-account-item">
+              <div key={acc.id} className="tg-account-item">
                 <span>{acc.phone}</span>
               </div>
             ))
@@ -52,13 +83,9 @@ function MainLayout() {
           <button className="tg-bottom-btn tg-bottom-btn-active">Чаты</button>
           <button className="tg-bottom-btn">Рассылка</button>
           <button className="tg-bottom-btn">Настройки</button>
-          <button className="tg-bottom-btn" onClick={() => {
-            localStorage.removeItem('token');
-            sessionStorage.removeItem('token');
-            window.location.replace('/login');
-          }}>Выйти</button>
+          <button className="tg-bottom-btn" onClick={handleLogout}>Выйти</button>
         </div>
-        <AddAccountModal open={showAddModal} onClose={() => setShowAddModal(false)} />
+        <AddAccountModal open={showAddModal} onClose={handleCloseModal} />
       </aside>
       <main className="tg-main">
         <div className="tg-empty-chat">
