@@ -2,7 +2,7 @@ services:
   - type: web
     name: tgm2
     env: node
-    buildCommand: chmod +x ./build.sh && ./build.sh
+    buildCommand: cd backend && npm install && cd .. && pip install -r requirements.txt
     startCommand: cd backend && node server.js
     envVars:
       - key: NODE_ENV
@@ -16,5 +16,4 @@ services:
       paths:
         - backend/**
         - package.json
-        - build.sh
         - requirements.txt
